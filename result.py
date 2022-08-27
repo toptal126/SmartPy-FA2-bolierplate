@@ -2,28 +2,26 @@ import smartpy as sp
 FA2 = sp.io.import_script_from_url("https://smartpy.io/templates/fa2_lib.py")
 
 
-class PublicMintNft:
+class PublicMintNft(sp.Contract):
     """(Mixin) Non-standard `mint` entrypoint for FA2Nft with incrementing id.
 
     Requires the `Admin` mixin.
     """
 
-    def __init__(self, whitelist={}):
+    def __init__(self, whitelist=[]):
         self.update_initial_storage(
-            whitelist=sp.big_map(
-                whitelist,
-                tkey=sp.TNat,
-                tvalue=sp.TAddress,
+            whitelist=sp.set(
+                whitelist
             )
         )
 
     @sp.entry_point
     def toggleWhitelist(self, params):
         sp.verify(self.is_administrator(sp.sender), "FA2_NOT_ADMIN")
-        # if params not in self.data.whitelist:
-        #     self.data.whitelist[sp.len(self.data.whitelist)] = params
-        # else:
-        #     del self.data.whitelist[sp.len(self.data.whitelist)]
+        with sp.if_(self.data.whitelist.contains(params)):
+            self.data.whitelist.remove(params)
+        with sp.else_():
+            self.data.whitelist.add(params)
 
     @sp.offchain_view()
     def whitelist(self):
@@ -44,6 +42,14 @@ class PublicMintNft:
             ),
         )
         # sp.verify(self.is_administrator(sp.sender), "FA2_NOT_ADMIN")
+
+        with sp.if_(self.data.whitelist.contains(sp.sender)):
+            sp.verify(sp.amount > sp.tez(15),
+                      "INSUFFICIENT AMOUNT OF TEZOS - WHITELISTED")
+        with sp.else_():
+            sp.verify(sp.amount > sp.tez(20),
+                      "INSUFFICIENT AMOUNT OF TEZOS - NOT WHITELISTED")
+
         with sp.for_("action", batch) as action:
             token_id = sp.compute(self.data.last_token_id)
             metadata = sp.record(token_id=token_id, token_info=action.metadata)
@@ -85,11 +91,13 @@ def test():
         metadata=METADATA,
         token_metadata=TOKEN_METADATA,
     )
-
-    c1.toggleWhitelist(params=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh")).run(
-        sender=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"))
-    sc.show(c1.whitelist())
+    #  Below line must be written before contract interaction
     sc += c1
+
+    # c1.toggleWhitelist(params=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh")).run(
+    #     sender=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"))
+
+    sc.show(c1.whitelist())
 
 
 # A a compilation target (produces compiled code)
