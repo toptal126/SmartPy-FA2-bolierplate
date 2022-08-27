@@ -8,6 +8,29 @@ class PublicMintNft:
     Requires the `Admin` mixin.
     """
 
+    def __init__(self, whitelist={}):
+        self.update_initial_storage(
+            whitelist=sp.big_map(
+                whitelist,
+                tkey=sp.TNat,
+                tvalue=sp.TAddress,
+            )
+        )
+
+    @sp.entry_point
+    def toggleWhitelist(self, params):
+        sp.verify(self.is_administrator(sp.sender), "FA2_NOT_ADMIN")
+        # if params not in self.data.whitelist:
+        #     self.data.whitelist[sp.len(self.data.whitelist)] = params
+        # else:
+        #     del self.data.whitelist[sp.len(self.data.whitelist)]
+
+    @sp.offchain_view()
+    def whitelist(self):
+        sp.result(self.data.whitelist)
+    # check sp.amount
+    # sef.data.whitelist
+
     @sp.entry_point
     def mint(self, batch):
         """Admin can mint new or existing tokens."""
@@ -20,7 +43,7 @@ class PublicMintNft:
                 ).layout(("to_", "metadata"))
             ),
         )
-        # sp.verify(self.is_administr/ator(sp.sender), "FA2_NOT_ADMIN")
+        # sp.verify(self.is_administrator(sp.sender), "FA2_NOT_ADMIN")
         with sp.for_("action", batch) as action:
             token_id = sp.compute(self.data.last_token_id)
             metadata = sp.record(token_id=token_id, token_info=action.metadata)
@@ -33,6 +56,7 @@ class NftWithAdmin(FA2.Admin, FA2.WithdrawMutez, PublicMintNft, FA2.Fa2Nft):
     def __init__(self, admin, **kwargs):
         FA2.Fa2Nft.__init__(self, **kwargs)
         FA2.Admin.__init__(self, admin)
+        PublicMintNft.__init__(self)
 
 
 tok0_md = sp.map(l={
@@ -48,6 +72,8 @@ METADATA = sp.utils.metadata_of_url(
 
 
 alice = sp.test_account("Alice")
+bob = sp.test_account("bob")
+cat = sp.test_account("cat")
 
 
 @ sp.add_test(name="NFT with admin and mint")
@@ -55,20 +81,22 @@ def test():
     sc = sp.test_scenario()
 
     c1 = NftWithAdmin(
-        admin=sp.test_account("admin").address,
+        admin=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"),
         metadata=METADATA,
-        token_metadata=TOKEN_METADATA
+        token_metadata=TOKEN_METADATA,
     )
 
+    c1.toggleWhitelist(params=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh")).run(
+        sender=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"))
+    sc.show(c1.whitelist())
     sc += c1
 
 
 # A a compilation target (produces compiled code)
 sp.add_compilation_target("NftWithAdmin_Compiled", NftWithAdmin(
-    admin=sp.test_account("admin").address,
+    admin=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"),
     metadata=sp.utils.metadata_of_url(
         "ipfs://bafkreigb6nsuvwc7vzx6oqzoaeaxno6liyr5rigbheg2ol7ndac75kawoe"
     ),
-    ledger={0: alice.address, 1: alice.address, 2: alice.address},
     token_metadata=TOKEN_METADATA,
 ))
