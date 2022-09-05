@@ -89,7 +89,7 @@ def test():
     c1 = NftWithAdmin(
         admin=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"),
         metadata=METADATA,
-        token_metadata=TOKEN_METADATA,
+        token_metadata=[],
     )
     #  Below line must be written before contract interaction
     sc += c1
@@ -102,9 +102,9 @@ def test():
 
 # A a compilation target (produces compiled code)
 sp.add_compilation_target("NftWithAdmin_Compiled", NftWithAdmin(
-    admin=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"),
+    admin=sp.address("tz1UZG9kDsRK7UBQUZVEEPgdr3jY4xenfPKC"),
     metadata=sp.utils.metadata_of_url(
         "ipfs://bafkreigb6nsuvwc7vzx6oqzoaeaxno6liyr5rigbheg2ol7ndac75kawoe"
     ),
-    token_metadata=TOKEN_METADATA,
+    token_metadata=[],
 ))
