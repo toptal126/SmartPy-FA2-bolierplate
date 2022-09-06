@@ -1,5 +1,20 @@
+from email import utils
 import smartpy as sp
 FA2 = sp.io.import_script_from_url("https://smartpy.io/templates/fa2_lib.py")
+Utils = sp.io.import_script_from_url(
+    "https://raw.githubusercontent.com/RomarQ/tezos-sc-utils/main/smartpy/utils.py")
+
+
+def string_of_nat(params):
+    c = sp.map({x: str(x) for x in range(0, 10)})
+    x = sp.local('x', params)
+    res = sp.local('res', [])
+    with sp.if_(x.value == 0):
+        res.value.push('0')
+    with sp.while_(0 < x.value):
+        res.value.push(c[x.value % 10])
+        x.value //= 10
+    return sp.concat(res.value)
 
 
 class PublicMintNft(sp.Contract):
@@ -12,7 +27,8 @@ class PublicMintNft(sp.Contract):
         self.update_initial_storage(
             whitelist=sp.set(
                 whitelist
-            )
+            ),
+            string_of_nat=''
         )
 
     @sp.entry_point
@@ -26,8 +42,13 @@ class PublicMintNft(sp.Contract):
     @sp.offchain_view()
     def whitelist(self):
         sp.result(self.data.whitelist)
+
     # check sp.amount
     # sef.data.whitelist
+
+    @sp.entry_point
+    def test_string_of_nat(self, params):
+        self.data.string_of_nat = string_of_nat(params)
 
     @sp.entry_point
     def mint(self, batch):
@@ -37,8 +58,7 @@ class PublicMintNft(sp.Contract):
             sp.TList(
                 sp.TRecord(
                     to_=sp.TAddress,
-                    metadata=sp.TMap(sp.TString, sp.TBytes),
-                ).layout(("to_", "metadata"))
+                ).layout(("to_"))
             ),
         )
         # sp.verify(self.is_administrator(sp.sender), "FA2_NOT_ADMIN")
@@ -52,7 +72,17 @@ class PublicMintNft(sp.Contract):
 
         with sp.for_("action", batch) as action:
             token_id = sp.compute(self.data.last_token_id)
-            metadata = sp.record(token_id=token_id, token_info=action.metadata)
+            metadata = sp.record(token_id=token_id, token_info=sp.map(
+                l={
+                    '':  Utils.Bytes.of_string(sp.concat([
+                        "ipfs://QmWoCRq4iXnUwzMF2JUUxSbXsTSiuitxvWiYQ27XXusfNu/",
+                        string_of_nat(token_id), ".json"])),
+                    # sp.utils.bytes_of_string(
+                    #     sp.concat([
+                    #         "ipfs://QmWoCRq4iXnUwzMF2JUUxSbXsTSiuitxvWiYQ27XXusfNu/",
+                    #         res, ".json"])
+                    # ),
+                }))
             self.data.token_metadata[token_id] = metadata
             self.data.ledger[token_id] = action.to_
             self.data.last_token_id += 1
@@ -94,15 +124,20 @@ def test():
     #  Below line must be written before contract interaction
     sc += c1
 
-    # c1.toggleWhitelist(params=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh")).run(
+    c1.test_string_of_nat(12345678901234)
+    sc.show(c1.data)
+    # c1.toggleWhitelist(sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh")).run(
     #     sender=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"))
 
-    sc.show(c1.whitelist())
+    # c1.mint([sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh")]).run(
+    #     sender=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"), amount=sp.mutez(20500000))
+
+    # sc.show(c1.testString())
 
 
 # A a compilation target (produces compiled code)
 sp.add_compilation_target("NftWithAdmin_Compiled", NftWithAdmin(
-    admin=sp.address("tz1UZG9kDsRK7UBQUZVEEPgdr3jY4xenfPKC"),
+    admin=sp.address("tz1XSBR9VJ1ggCEy9QHkEUXXsgZhwmzxm7fh"),
     metadata=sp.utils.metadata_of_url(
         "ipfs://bafkreigb6nsuvwc7vzx6oqzoaeaxno6liyr5rigbheg2ol7ndac75kawoe"
     ),
